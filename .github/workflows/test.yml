@@ -1,0 +1,132 @@
+name: Test & Publish
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'npins/**'
+      - 'nix/**'
+      - 'default.nix'
+      - 'flake.nix'
+      - 'tests/**'
+      - '.github/workflows/test.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'npins/**'
+      - 'nix/**'
+      - 'default.nix'
+      - 'flake.nix'
+      - 'tests/**'
+      - '.github/workflows/test.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  static-check:
+    name: Static Check & npins Verify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@main
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+        with:
+          extra-conf: |
+            experimental-features = nix-command flakes
+
+      - name: Install npins CLI
+        run: |
+          nix profile install nixpkgs#npins
+
+      - name: Verify npins Dependencies
+        run: |
+          echo ">>> Verifying npins dependency hashes..."
+          npins verify
+
+      - name: Run Static Derivation Evaluation Test
+        run: |
+          echo ">>> Running static derivation evaluation check..."
+          nix-build tests/default.nix -A eval-check
+
+      - name: Run NixOS Module Static Evaluation Test
+        run: |
+          echo ">>> Running NixOS module static evaluation check..."
+          nix-build tests/default.nix -A module-eval-check
+
+      - name: Verify Flake Package and Module Evaluation
+        run: |
+          echo ">>> Verifying Flake package and module outputs..."
+          nix eval path:.#packages.x86_64-linux.mise.name
+          nix eval path:.#nixosModules.default
+
+  vm-test:
+    name: NixOS VM Test
+    runs-on: ubuntu-latest
+    needs: static-check
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@main
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Enable KVM Acceleration
+        run: |
+          if [ -e /dev/kvm ]; then
+            sudo chmod 666 /dev/kvm
+            echo ">>> KVM acceleration is available and permissions configured."
+          else
+            echo ">>> KVM device not found, falling back to software emulation."
+          fi
+
+      - name: Run Mise VM Availability Test (via NixOS Module)
+        run: |
+          echo ">>> Running NixOS VM availability test for mise module..."
+          nix-build tests/default.nix -A vmtest
+
+  ci-success:
+    name: CI Success
+    runs-on: ubuntu-latest
+    needs: [static-check, vm-test]
+    if: always()
+    steps:
+      - name: Verify All Upstream Checks
+        run: |
+          if [ "${{ needs.static-check.result }}" != "success" ] || [ "${{ needs.vm-test.result }}" != "success" ]; then
+            echo "::error::One or more required checks failed."
+            echo "static-check result: ${{ needs.static-check.result }}"
+            echo "vm-test result: ${{ needs.vm-test.result }}"
+            exit 1
+          fi
+          echo "All required CI checks have passed successfully."
+
+  publish-cache:
+    name: Build & Publish Binary Cache
+    runs-on: ubuntu-latest
+    needs: ci-success
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@main
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+        with:
+          extra-conf: |
+            experimental-features = nix-command flakes
+
+      - name: Publish Mise Binary Cache to GHCR
+        uses: shaogme/nixcache-oci@main
+        with:
+          mode: 'non-flake'
+          file: 'default.nix'
+          attributes: 'mise'
+          registry: 'ghcr.io'
+          repo: ${{ github.repository }}
+          signing-key: ${{ secrets.NIX_SIGNING_KEY }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}

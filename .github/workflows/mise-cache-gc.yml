@@ -1,0 +1,56 @@
+name: Mise Cache Garbage Collection
+
+on:
+  schedule:
+    # 每周日凌晨 03:00 UTC 运行垃圾回收
+    - cron: '0 3 * * 0'
+  workflow_dispatch:
+    inputs:
+      retention_days:
+        description: '保留天数 (超过且不在当前闭包中的缓存将被清理)'
+        required: true
+        default: '30'
+      dry_run:
+        description: '试运行 (Dry run, 仅输出不实际删除)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  garbage-collect:
+    name: Run OCI Cache GC
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@main
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Log in to GitHub Container Registry
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Run nixcache-builder GC
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DRY_RUN_FLAG=""
+          if [[ "${{ github.event.inputs.dry_run }}" == "true" ]]; then
+            DRY_RUN_FLAG="--dry-run"
+          fi
+          
+          RETENTION="${{ github.event.inputs.retention_days || '30' }}"
+          
+          nix run "github:shaogme/nixcache-oci#cache-builder-bin" -- \
+            --gc \
+            --retention-days "$RETENTION" \
+            $DRY_RUN_FLAG \
+            --mode non-flake \
+            --file default.nix \
+            --attributes mise \
+            --repo "${{ github.repository }}" \
+            --registry "ghcr.io"
