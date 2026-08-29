@@ -29,28 +29,14 @@ jobs:
 
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
+        with:
+          extra-conf: |
+            experimental-features = nix-command flakes
 
-      - name: Log in to GitHub Container Registry
-        run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Run Garbage Collection
+        uses: shaogme/nixcache-oci/gc@main
+        with:
+          retention-days: ${{ github.event.inputs.retention_days || '30' }}
+          dry-run: ${{ github.event.inputs.dry_run || 'false' }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Run nixcache-builder GC
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          DRY_RUN_FLAG=""
-          if [[ "${{ github.event.inputs.dry_run }}" == "true" ]]; then
-            DRY_RUN_FLAG="--dry-run"
-          fi
-          
-          RETENTION="${{ github.event.inputs.retention_days || '30' }}"
-          
-          nix run "github:shaogme/nixcache-oci#cache-builder-bin" -- \
-            --gc \
-            --retention-days "$RETENTION" \
-            $DRY_RUN_FLAG \
-            --mode non-flake \
-            --file default.nix \
-            --attributes mise \
-            --repo "${{ github.repository }}" \
-            --registry "ghcr.io"
