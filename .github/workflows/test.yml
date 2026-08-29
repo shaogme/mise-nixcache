@@ -105,11 +105,24 @@ jobs:
           fi
           echo "All required CI checks have passed successfully."
 
-  publish-cache:
-    name: Build & Publish Binary Cache
-    runs-on: ubuntu-latest
+  # =========================================================================
+  # 阶段 1: 并行编译多平台产物 (Scatter - GitHub Matrix 并发)
+  # =========================================================================
+  build-matrix:
+    name: Build (${{ matrix.system }})
     needs: ci-success
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            system: x86_64-linux
+          - os: ubuntu-24.04-arm
+            system: aarch64-linux
+          - os: macos-14
+            system: aarch64-darwin
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@main
@@ -120,13 +133,31 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
 
-      - name: Publish Mise Binary Cache to GHCR
-        uses: shaogme/nixcache-oci@main
+      - name: Build & Push Blobs
+        uses: shaogme/nixcache-oci/build@main
         with:
-          mode: 'non-flake'
-          file: 'default.nix'
-          attributes: 'mise'
-          registry: 'ghcr.io'
-          repo: ${{ github.repository }}
+          system: ${{ matrix.system }}
+          mode: 'flake'
+          flake-path: '.'
           signing-key: ${{ secrets.NIX_SIGNING_KEY }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          fail-fast: 'true'
+
+  # =========================================================================
+  # 阶段 2: 汇聚并原子发布统一缓存索引 (Gather - 单节点合并发布)
+  # =========================================================================
+  publish-index:
+    name: Merge & Publish Cache Index
+    needs: build-matrix
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@main
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Merge Receipts & Finalize Index
+        uses: shaogme/nixcache-oci/merge@main
+        with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
