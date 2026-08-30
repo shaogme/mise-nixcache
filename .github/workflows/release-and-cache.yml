@@ -1,0 +1,80 @@
+name: Build, Release & Publish Multi-Arch Pipeline
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.gitignore'
+  workflow_dispatch:
+
+concurrency:
+  group: release-and-cache-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  # =========================================================================
+  # 阶段 1: 多平台并行编译与 NAR 上传 (Scatter - 3 大主流架构)
+  # =========================================================================
+  publish-cache-matrix:
+    name: 1. Scatter Build (${{ matrix.system }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            system: x86_64-linux
+          - os: ubuntu-24.04-arm
+            system: aarch64-linux
+          - os: macos-latest
+            system: aarch64-darwin
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@main
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+        with:
+          extra-conf: |
+            experimental-features = nix-command flakes
+
+      - name: Build Flake Outputs & Push NAR Blobs
+        uses: shaogme/nixcache-oci/build@main
+        with:
+          system: ${{ matrix.system }}
+          mode: 'flake'
+          flake-path: '.'
+          signing-key: ${{ secrets.NIX_SIGNING_KEY }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          strict: 'true'
+          export-concurrency: '4'
+
+  # =========================================================================
+  # 阶段 2: 汇聚并原子发布多架构缓存索引 (Gather & Promote)
+  # =========================================================================
+  publish-cache-index:
+    name: 2. Gather & Promote Multi-Arch Cache Index
+    needs: [publish-cache-matrix]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@main
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+        with:
+          extra-conf: |
+            experimental-features = nix-command flakes
+
+      - name: Promote Session & Publish Global Index
+        uses: shaogme/nixcache-oci/promote@main
+        with:
+          target-tag: 'cache-index'
+          github-token: ${{ secrets.GITHUB_TOKEN }}

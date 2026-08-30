@@ -2,8 +2,8 @@ name: Daily npins Update & PR
 
 on:
   schedule:
-    # 每天凌晨 02:00 UTC (北京时间 10:00) 自动执行
-    - cron: '0 2 * * *'
+    # 每天 19:00 UTC (北京时间凌晨 03:00) 自动执行
+    - cron: '0 19 * * *'
   workflow_dispatch:
 
 permissions:
@@ -35,10 +35,10 @@ jobs:
           npins update
           
           if git diff --quiet npins/sources.json; then
-            echo "updated=false" >> $GITHUB_OUTPUT
+            echo "updated=false" >> "$GITHUB_OUTPUT"
             echo ">>> npins dependencies are already up-to-date."
           else
-            echo "updated=true" >> $GITHUB_OUTPUT
+            echo "updated=true" >> "$GITHUB_OUTPUT"
             echo ">>> npins dependencies have been updated."
           fi
 
