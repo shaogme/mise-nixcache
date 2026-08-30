@@ -61,7 +61,6 @@ jobs:
           echo ">>> Verifying Flake packages and module outputs..."
           nix eval path:.#packages.x86_64-linux.mise.name
           nix eval path:.#packages.aarch64-linux.mise.name
-          nix eval path:.#packages.x86_64-darwin.mise.name
           nix eval path:.#packages.aarch64-darwin.mise.name
           nix eval path:.#nixosModules.default
 
@@ -129,7 +128,7 @@ jobs:
           echo "All preliminary CI verification checks passed successfully."
 
   # =========================================================================
-  # 阶段 3: 多平台并行编译与 NAR 上传 (Scatter - 4 大主流架构)
+  # 阶段 3: 多平台并行编译与 NAR 上传 (Scatter - 3 大主流架构)
   # =========================================================================
   publish-cache-matrix:
     name: 3. Scatter Build (${{ matrix.system }})
@@ -143,8 +142,6 @@ jobs:
             system: x86_64-linux
           - os: ubuntu-24.04-arm
             system: aarch64-linux
-          - os: macos-26-intel
-            system: x86_64-darwin
           - os: macos-latest
             system: aarch64-darwin
     runs-on: ${{ matrix.os }}

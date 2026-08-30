@@ -28,7 +28,6 @@ on:
           - 'all'
           - 'x86_64-linux'
           - 'aarch64-linux'
-          - 'x86_64-darwin'
           - 'aarch64-darwin'
       target_tag:
         description: 'Target OCI Tag (e.g. cache-index, run-123456)'
