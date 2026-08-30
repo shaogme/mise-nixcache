@@ -1,0 +1,98 @@
+name: Clean & Invalidate Build Cache
+
+on:
+  workflow_dispatch:
+    inputs:
+      purge_mode:
+        description: 'Purge Scope Mode'
+        required: true
+        default: 'filter'
+        type: choice
+        options:
+          - 'filter'      # 按名称/路径/时间/架构条件筛选清理
+          - 'outputs'     # 清理当前 mise-nixcache Flake 输出闭包
+          - 'all'         # 彻底清空重置所有基线缓存
+      patterns:
+        description: 'Patterns to match (e.g. *mise*, *rust*, *glibc*)'
+        required: false
+        default: ''
+        type: string
+      system:
+        description: 'Target System Architecture (choose all for all systems)'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - 'all'
+          - 'x86_64-linux'
+          - 'aarch64-linux'
+          - 'x86_64-darwin'
+          - 'aarch64-darwin'
+      older_than:
+        description: 'Purge entries older than (e.g. 30d, 7d, 12h)'
+        required: false
+        default: ''
+        type: string
+      cascade:
+        description: 'Cascade Mode'
+        required: true
+        default: 'dependents'
+        type: choice
+        options:
+          - 'dependents'  # 级联失效所有下游依赖 (推荐)
+          - 'exact'       # 仅清理自身
+          - 'transitive'  # 清理前向依赖闭包
+          - 'full'        # 双向全树级联
+      min_size:
+        description: 'Minimum NAR size threshold (e.g. 100M, 500M, 1G)'
+        required: false
+        default: ''
+        type: string
+      delete_blobs:
+        description: 'Attempt physical OCI Blob deletion'
+        required: false
+        default: false
+        type: boolean
+      strict:
+        description: 'Strict error handling mode (default true)'
+        required: false
+        default: true
+        type: boolean
+      dry_run:
+        description: 'Dry Run (Preview changes without applying)'
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  clean-cache:
+    name: Purge Cache (${{ github.event.inputs.purge_mode }})
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@main
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+        with:
+          extra-conf: |
+            experimental-features = nix-command flakes
+
+      - name: Execute Cache Purge
+        uses: shaogme/nixcache-oci/purge@main
+        with:
+          all: ${{ github.event.inputs.purge_mode == 'all' }}
+          flake-path: ${{ github.event.inputs.purge_mode == 'outputs' && '.' || '' }}
+          patterns: ${{ github.event.inputs.patterns }}
+          system: ${{ github.event.inputs.system != 'all' && github.event.inputs.system || '' }}
+          older-than: ${{ github.event.inputs.older_than }}
+          cascade: ${{ github.event.inputs.cascade }}
+          min-size: ${{ github.event.inputs.min_size }}
+          delete-blobs: ${{ github.event.inputs.delete_blobs }}
+          strict: ${{ github.event.inputs.strict }}
+          dry-run: ${{ github.event.inputs.dry_run }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}

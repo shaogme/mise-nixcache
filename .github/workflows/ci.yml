@@ -1,24 +1,19 @@
-name: Test & Publish
+name: CI, Build & Multi-Arch Cache Pipeline
 
 on:
   push:
-    branches: [ main ]
-    paths:
-      - 'npins/**'
-      - 'nix/**'
-      - 'default.nix'
-      - 'flake.nix'
-      - 'tests/**'
-      - '.github/workflows/test.yml'
+    branches: [main]
+    tags: ['v*']
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.gitignore'
   pull_request:
-    branches: [ main ]
-    paths:
-      - 'npins/**'
-      - 'nix/**'
-      - 'default.nix'
-      - 'flake.nix'
-      - 'tests/**'
-      - '.github/workflows/test.yml'
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.gitignore'
   workflow_dispatch:
 
 permissions:
@@ -26,8 +21,11 @@ permissions:
   packages: write
 
 jobs:
-  static-check:
-    name: Static Check & npins Verify
+  # =========================================================================
+  # 阶段 0: 静态质量与依赖校验 (Fail-Fast)
+  # =========================================================================
+  static-checks:
+    name: 0. Static Quality & Evaluation
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -43,31 +41,37 @@ jobs:
         run: |
           nix profile install nixpkgs#npins
 
-      - name: Verify npins Dependencies
+      - name: Verify npins Dependencies Integrity
         run: |
           echo ">>> Verifying npins dependency hashes..."
           npins verify
 
-      - name: Run Static Derivation Evaluation Test
+      - name: Run Static Derivation Evaluation Check
         run: |
           echo ">>> Running static derivation evaluation check..."
-          nix-build tests/default.nix -A eval-check
+          nix-build tests/default.nix -A eval-check --no-out-link
 
-      - name: Run NixOS Module Static Evaluation Test
+      - name: Run NixOS Module Static Evaluation Check
         run: |
           echo ">>> Running NixOS module static evaluation check..."
-          nix-build tests/default.nix -A module-eval-check
+          nix-build tests/default.nix -A module-eval-check --no-out-link
 
-      - name: Verify Flake Package and Module Evaluation
+      - name: Verify Flake Outputs Evaluation Across Systems
         run: |
-          echo ">>> Verifying Flake package and module outputs..."
+          echo ">>> Verifying Flake packages and module outputs..."
           nix eval path:.#packages.x86_64-linux.mise.name
+          nix eval path:.#packages.aarch64-linux.mise.name
+          nix eval path:.#packages.x86_64-darwin.mise.name
+          nix eval path:.#packages.aarch64-darwin.mise.name
           nix eval path:.#nixosModules.default
 
+  # =========================================================================
+  # 阶段 1: NixOS VM 运行期测试 (结合 NixCache 会话级加速)
+  # =========================================================================
   vm-test:
-    name: NixOS VM Test
+    name: 1. NixOS VM Driver & Integration Test
     runs-on: ubuntu-latest
-    needs: static-check
+    needs: [static-checks]
     steps:
       - name: Checkout Repository
         uses: actions/checkout@main
@@ -78,25 +82,25 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
 
-      - name: Setup NixCache Session
+      - name: Setup NixCache Session Acceleration
         uses: shaogme/nixcache-oci/setup@main
         with:
           signing-key: ${{ secrets.NIX_SIGNING_KEY }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Enable KVM Acceleration
+      - name: Configure KVM Device Permissions
         run: |
           if [ -e /dev/kvm ]; then
             sudo chmod 666 /dev/kvm
-            echo ">>> KVM acceleration is available and permissions configured."
+            echo ">>> Hardware KVM acceleration enabled."
           else
             echo ">>> KVM device not found, falling back to software emulation."
           fi
 
-      - name: Run Mise VM Availability Test (via NixOS Module)
+      - name: Run Mise VM Availability Test
         run: |
-          echo ">>> Running NixOS VM availability test for mise module..."
-          nix-build tests/default.nix -A vmtest
+          echo ">>> Running NixOS VM test suite..."
+          nix-build tests/default.nix -A vmtest --no-out-link
 
       - name: Capture & Upload Session Cache
         if: success() && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
@@ -105,28 +109,31 @@ jobs:
           system: 'x86_64-linux'
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
+  # =========================================================================
+  # 阶段 2: 质量门禁 (CI Success Gate)
+  # =========================================================================
   ci-success:
-    name: CI Success
+    name: 2. CI Gate Success
     runs-on: ubuntu-latest
-    needs: [static-check, vm-test]
+    needs: [static-checks, vm-test]
     if: always()
     steps:
-      - name: Verify All Upstream Checks
+      - name: Assert Required Checks Passed
         run: |
-          if [ "${{ needs.static-check.result }}" != "success" ] || [ "${{ needs.vm-test.result }}" != "success" ]; then
-            echo "::error::One or more required checks failed."
-            echo "static-check result: ${{ needs.static-check.result }}"
+          if [ "${{ needs.static-checks.result }}" != "success" ] || [ "${{ needs.vm-test.result }}" != "success" ]; then
+            echo "::error::One or more mandatory CI checks failed."
+            echo "static-checks result: ${{ needs.static-checks.result }}"
             echo "vm-test result: ${{ needs.vm-test.result }}"
             exit 1
           fi
-          echo "All required CI checks have passed successfully."
+          echo "All preliminary CI verification checks passed successfully."
 
   # =========================================================================
-  # 阶段 1: 并行编译多平台产物 (Scatter - GitHub Matrix 并发)
+  # 阶段 3: 多平台并行编译与 NAR 上传 (Scatter - 4 大主流架构)
   # =========================================================================
-  build-matrix:
-    name: Build (${{ matrix.system }})
-    needs: ci-success
+  publish-cache-matrix:
+    name: 3. Scatter Build (${{ matrix.system }})
+    needs: [ci-success]
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     strategy:
       fail-fast: false
@@ -136,7 +143,9 @@ jobs:
             system: x86_64-linux
           - os: ubuntu-24.04-arm
             system: aarch64-linux
-          - os: macos-14
+          - os: macos-26-intel
+            system: x86_64-darwin
+          - os: macos-latest
             system: aarch64-darwin
     runs-on: ${{ matrix.os }}
     steps:
@@ -149,7 +158,7 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
 
-      - name: Build & Push Blobs
+      - name: Build Flake Outputs & Push NAR Blobs
         uses: shaogme/nixcache-oci/build@main
         with:
           system: ${{ matrix.system }}
@@ -157,14 +166,15 @@ jobs:
           flake-path: '.'
           signing-key: ${{ secrets.NIX_SIGNING_KEY }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          fail-fast: 'true'
+          strict: 'true'
+          export-concurrency: '4'
 
   # =========================================================================
-  # 阶段 2: 汇聚并原子发布统一缓存索引 (Gather - 单节点合并发布)
+  # 阶段 4: 汇聚并原子发布多架构缓存索引 (Gather & Promote)
   # =========================================================================
-  publish-index:
-    name: Promote & Publish Cache Index
-    needs: build-matrix
+  publish-cache-index:
+    name: 4. Gather & Promote Multi-Arch Cache Index
+    needs: [publish-cache-matrix]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -176,7 +186,8 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
 
-      - name: Promote Receipts & Finalize Index
+      - name: Promote Session & Publish Global Index
         uses: shaogme/nixcache-oci/promote@main
         with:
+          target-tag: 'cache-index'
           github-token: ${{ secrets.GITHUB_TOKEN }}

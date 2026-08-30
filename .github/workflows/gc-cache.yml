@@ -1,0 +1,55 @@
+name: Garbage Collect Cache
+
+on:
+  schedule:
+    # 每周日凌晨 03:00 UTC 自动执行垃圾回收
+    - cron: '0 3 * * 0'
+  workflow_dispatch:
+    inputs:
+      retention_days:
+        description: 'Delete entries older than N days not in active closure'
+        required: false
+        default: '30'
+        type: string
+      dry_run:
+        description: 'Show what would be deleted without applying changes'
+        required: false
+        default: false
+        type: boolean
+      delete_blobs:
+        description: 'Attempt physical OCI Blob deletion'
+        required: false
+        default: false
+        type: boolean
+      strict:
+        description: 'Strict error handling mode (default true)'
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  gc:
+    name: Run Garbage Collection
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@main
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+        with:
+          extra-conf: |
+            experimental-features = nix-command flakes
+
+      - name: Execute Garbage Collection
+        uses: shaogme/nixcache-oci/gc@main
+        with:
+          retention-days: ${{ github.event.inputs.retention_days || '30' }}
+          dry-run: ${{ github.event.inputs.dry_run || 'false' }}
+          delete-blobs: ${{ github.event.inputs.delete_blobs || 'false' }}
+          strict: ${{ github.event.inputs.strict || 'true' }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
