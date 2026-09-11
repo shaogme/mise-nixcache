@@ -9,16 +9,16 @@
       },
       "branch": "main",
       "submodules": false,
-      "revision": "042707dc45bb55cd6ac811583ac91cfcb259ce88",
-      "url": "https://github.com/jdx/mise/archive/042707dc45bb55cd6ac811583ac91cfcb259ce88.tar.gz",
-      "hash": "sha256-v3HL2g7yTkuCZLScg9OlPUQ4qafzrDwwtHGQr9NQnGY="
+      "revision": "22b8eb5925c11ffb1dda9eaeba18492b1bc1bad4",
+      "url": "https://github.com/jdx/mise/archive/22b8eb5925c11ffb1dda9eaeba18492b1bc1bad4.tar.gz",
+      "hash": "sha256-OjP97GITLFsfbWk+4Bkf/f1WoJgtzfc5wofMWjLBJTs="
     },
     "nixpkgs": {
       "type": "Channel",
       "name": "nixpkgs-unstable",
       "artifact": "nixexprs.tar.xz",
-      "url": "https://releases.nixos.org/nixpkgs/nixpkgs-26.11pre1070774.d5dfd8e6716d/nixexprs.tar.xz",
-      "hash": "sha256-pAelOjF4w4iqEJozlFGQmWMobMa6F9eLIbMeBPBW7Ts="
+      "url": "https://releases.nixos.org/nixpkgs/nixpkgs-26.11pre1071116.aff8a0b28396/nixexprs.tar.xz",
+      "hash": "sha256-vLblJRFZjrSBOyHD4jwBkGJm2iOVk8c9BJnzZTOojSc="
     }
   },
   "version": 8
