@@ -1,0 +1,57 @@
+{
+  "lockfile_version": "1",
+  "packages": {
+    "github:NixOS/nixpkgs/nixpkgs-unstable": {
+      "last_modified": "2026-09-13T01:58:51Z",
+      "resolved": "github:NixOS/nixpkgs/02f5696b0e6097e589076d886b317b83ff0437d7?lastModified=1789264731&narHash=sha256-llGJbC0CcU8DfROr6mZjRJgMLQd%2FSKwfpzxJH%2F2lHO4%3D"
+    },
+    "npins@latest": {
+      "last_modified": "2026-08-27T07:16:00Z",
+      "resolved": "github:NixOS/nixpkgs/c27cdad491a991b11ed731760aa2ef8db0cb0410#npins",
+      "source": "devbox-search",
+      "version": "0.5.0",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/mlp8har22hdpsgjzidprmyb4nxc3fgxj-npins-0.5.0",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/mlp8har22hdpsgjzidprmyb4nxc3fgxj-npins-0.5.0"
+        },
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/v0pajg45wyv0zfr0a9gjc7kynhjfd5v7-npins-0.5.0",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/v0pajg45wyv0zfr0a9gjc7kynhjfd5v7-npins-0.5.0"
+        },
+        "x86_64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/q4bds2k8iivmjfcg9xwjk4m0i7a9gs9y-npins-0.5.0",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/q4bds2k8iivmjfcg9xwjk4m0i7a9gs9y-npins-0.5.0"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/yq93dd63z58fxhpmvamzl10fbans7pqn-npins-0.5.0",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/yq93dd63z58fxhpmvamzl10fbans7pqn-npins-0.5.0"
+        }
+      }
+    }
+  }
+}

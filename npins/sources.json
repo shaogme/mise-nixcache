@@ -1,17 +1,20 @@
 {
   "pins": {
     "mise": {
-      "type": "Git",
+      "type": "GitRelease",
       "repository": {
         "type": "GitHub",
         "owner": "jdx",
         "repo": "mise"
       },
-      "branch": "main",
+      "pre_releases": false,
+      "version_upper_bound": null,
+      "release_prefix": null,
       "submodules": false,
-      "revision": "a2db6d3cd25d4a772b6a345b075211685abdef8a",
-      "url": "https://github.com/jdx/mise/archive/a2db6d3cd25d4a772b6a345b075211685abdef8a.tar.gz",
-      "hash": "sha256-cZ1W1bA7wKn8cDd0vY1zsdvAni6Azm8ZaiNr3J9PWjo="
+      "version": "v2026.9.7",
+      "revision": "fe3caf464ab73110b431a92f964c236e55cd7a00",
+      "url": "https://api.github.com/repos/jdx/mise/tarball/refs/tags/v2026.9.7",
+      "hash": "sha256-+9W3/cnW5gm51JZG26d+tZ8jj4EzGpgDryXrUIiwWVg="
     },
     "nixpkgs": {
       "type": "Channel",
