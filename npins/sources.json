@@ -20,8 +20,8 @@
       "type": "Channel",
       "name": "nixpkgs-unstable",
       "artifact": "nixexprs.tar.xz",
-      "url": "https://releases.nixos.org/nixpkgs/nixpkgs-26.11pre1077358.35e212742cea/nixexprs.tar.xz",
-      "hash": "sha256-6LGCY9g1ZBI6kQeF8AKZ49sBPxcWLeuWTtbiC6LDtfU="
+      "url": "https://releases.nixos.org/nixpkgs/nixpkgs-26.11pre1077524.3396d0584677/nixexprs.tar.xz",
+      "hash": "sha256-mNEdEhfKGzZoS2AvDmgl/VaU8HMP4se5EVHN0kLft1o="
     }
   },
   "version": 8
