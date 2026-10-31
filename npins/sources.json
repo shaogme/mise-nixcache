@@ -11,10 +11,10 @@
       "version_upper_bound": null,
       "release_prefix": null,
       "submodules": false,
-      "version": "v2026.10.24",
-      "revision": "02cdcfb87871bf7824239436a731b57e167eafdc",
-      "url": "https://api.github.com/repos/jdx/mise/tarball/refs/tags/v2026.10.24",
-      "hash": "sha256-CNCFBEDEhP8EO62EqgrYVomeYOQ3qke+EI9NIrDxxjI="
+      "version": "v2026.10.25",
+      "revision": "3f2e3632cf450a8c67120b6aa03860dc13308b44",
+      "url": "https://api.github.com/repos/jdx/mise/tarball/refs/tags/v2026.10.25",
+      "hash": "sha256-sge1Mp+9dbkTpQ/eL+k9crkssmI5TSotZCWD2pLqn2E="
     },
     "nixpkgs": {
       "type": "Channel",
